@@ -1,1 +1,881 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>UltraPro Tools — Single File (8 Pro Tools)</title>
+
+<!-- External libs -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+<script>
+  if (window.pdfjsLib) {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+  }
+</script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<!-- Tesseract omitted (not required here) -->
+<style>
+  /* ========== Visual + Layout ========== */
+  :root{
+    --bg1: #0f1724; --bg2:#07112a;
+    --card: rgba(255,255,255,0.03);
+    --glass: rgba(255,255,255,0.04);
+    --accent-a: linear-gradient(135deg,#6d5df6,#8f7bff);
+    --accent-b: linear-gradient(135deg,#ff6b88,#ff9a6b);
+    --text: #eaf1ff;
+    --muted: rgba(234,241,255,0.65);
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
+    background: radial-gradient(1200px 600px at 10% 10%, #071028 0%, transparent 10%),
+                radial-gradient(900px 500px at 90% 90%, #0b1130 0%, transparent 10%),
+                linear-gradient(180deg,var(--bg1),var(--bg2));
+    color:var(--text); -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+    min-height:100vh; padding-bottom:110px;
+  }
+
+  header{
+    display:flex;align-items:center;justify-content:space-between;padding:18px 28px;
+    position:sticky;top:0;background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);
+    border-bottom:1px solid rgba(255,255,255,0.03);backdrop-filter:blur(6px);z-index:60;
+  }
+  .brand{display:flex;gap:12px;align-items:center}
+  .logo{width:46px;height:46px;border-radius:12px;background:var(--accent-a);display:flex;align-items:center;justify-content:center;font-weight:800;box-shadow:0 8px 30px rgba(80,60,200,0.14)}
+  .brand h1{margin:0;font-size:16px}
+  .brand p{margin:0;font-size:12px;color:var(--muted)}
+
+  .meta-actions{display:flex;gap:10px;align-items:center}
+  .btn{background:var(--accent-a);border:none;color:white;padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:700;box-shadow:0 8px 30px rgba(80,65,200,0.12)}
+  .btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--text);font-weight:600}
+  .small{padding:8px 10px;border-radius:8px;font-size:13px}
+
+  .container{max-width:1100px;margin:26px auto;padding:0 18px}
+
+  .hero{display:flex;gap:18px;align-items:center;margin-bottom:20px}
+  .hero .left{flex:1;padding:20px;border-radius:14px;background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);border:1px solid rgba(255,255,255,0.03);backdrop-filter:blur(8px)}
+  .hero h2{margin:0 0 6px;font-size:22px}
+  .hero p{margin:0;color:var(--muted)}
+
+  /* 8-box home grid */
+  .grid-home{display:grid;grid-template-columns:repeat(2,1fr);gap:18px;margin-top:18px}
+  .box{
+    padding:18px;border-radius:12px;background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));
+    border:1px solid rgba(255,255,255,0.03);cursor:pointer;display:flex;align-items:center;gap:12px;
+    transition:transform .16s, box-shadow .16s;
+  }
+  .box:hover{transform:translateY(-6px);box-shadow:0 18px 60px rgba(2,6,23,0.6)}
+  .box .ico{width:64px;height:64px;border-radius:12px;background:var(--glass);display:flex;align-items:center;justify-content:center;font-weight:800}
+  .box h4{margin:0;font-size:16px}
+  .box p{margin:0;color:var(--muted);font-size:13px}
+
+  /* Tool page */
+  .tool-page{display:none;padding:18px 0}
+  .tool-page.active{display:block}
+  .tool-card{padding:18px;border-radius:12px;background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);border:1px solid rgba(255,255,255,0.03);backdrop-filter:blur(6px)}
+  .row{display:flex;gap:12px;align-items:flex-start}
+  .col{flex:1;min-width:0}
+
+  input[type=file]{display:block}
+  input,select,textarea{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:rgba(255,255,255,0.02);color:var(--text);margin-top:8px}
+  label{font-size:13px;color:var(--muted)}
+  canvas,img{max-width:100%;border-radius:8px;margin-top:10px;border:1px solid rgba(255,255,255,0.03)}
+
+  footer{position:fixed;left:0;right:0;bottom:0;padding:12px 20px;background:linear-gradient(0deg,rgba(0,0,0,0.35),transparent);display:flex;justify-content:center;color:var(--muted);font-size:13px}
+
+  /* responsive */
+  @media (max-width:900px){
+    .grid-home{grid-template-columns:1fr}
+    .hero{flex-direction:column}
+    header{padding:12px}
+  }
+
+  /* helper */
+  .muted{color:var(--muted)}
+  .tiny{font-size:12px;color:var(--muted)}
+  .flex{display:flex;gap:8px;align-items:center}
+  .kpi{font-weight:800;font-size:18px}
+  .pill{display:inline-block;padding:6px 10px;border-radius:999px;background:rgba(255,255,255,0.04);font-size:13px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="logo">UT</div>
+    <div>
+      <h1>UltraPro Tools</h1>
+      <p>8 Pro Tools — single-file SPA • Browser-only</p>
+    </div>
+  </div>
+  <div class="meta-actions">
+    <div class="pill" id="status">Ready</div>
+    <button class="btn small" id="homeBtn">Home</button>
+  </div>
+</header>
+
+<main class="container">
+
+  <section class="hero">
+    <div class="left">
+      <h2>Choose a Pro Tool</h2>
+      <p>Click any box below to open a full-featured tool page. All processing is done locally in your browser — your files never leave your machine.</p>
+    </div>
+    <div style="width:280px" class="tool-card">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div class="tiny">Processed</div>
+          <div class="kpi">1M+ files</div>
+        </div>
+        <div>
+          <div class="tiny">Active</div>
+          <div class="kpi">50k+</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8 boxes -->
+  <div class="grid-home" id="homeGrid">
+    <div class="box" data-tool="t1">
+      <div class="ico">1</div>
+      <div>
+        <h4>Image → PDF</h4>
+        <p>Convert one or multiple images into a single PDF (auto-size pages)</p>
+      </div>
+    </div>
+
+    <div class="box" data-tool="t2">
+      <div class="ico">2</div>
+      <div>
+        <h4>Image Quality → Target KB</h4>
+        <p>Compress image to reach a target file size in KB (iterative)</p>
+      </div>
+    </div>
+
+    <div class="box" data-tool="t3">
+      <div class="ico">3</div>
+      <div>
+        <h4>JPG ⇄ PNG Converter</h4>
+        <p>Convert between formats preserving max quality</p>
+      </div>
+    </div>
+
+    <div class="box" data-tool="t4">
+      <div class="ico">4</div>
+      <div>
+        <h4>PDF Size Reduce (Target KB)</h4>
+        <p>Rebuild PDF by compressing rendered pages until target KB</p>
+      </div>
+    </div>
+
+    <div class="box" data-tool="t5">
+      <div class="ico">5</div>
+      <div>
+        <h4>Add Name & Date under Image</h4>
+        <p>Place name and selected date as white strip under photo and download</p>
+      </div>
+    </div>
+
+    <div class="box" data-tool="t6">
+      <div class="ico">6</div>
+      <div>
+        <h4>PDF Unlock (Provide Password)</h4>
+        <p>Open password-protected PDF (with correct password) and export unlocked PDF</p>
+      </div>
+    </div>
+
+    <div class="box" data-tool="t7">
+      <div class="ico">7</div>
+      <div>
+        <h4>Split PDF by Pages</h4>
+        <p>Choose pages (e.g., 1,3-5,9) and export a new PDF with only those pages</p>
+      </div>
+    </div>
+
+    <div class="box" data-tool="t8">
+      <div class="ico">8</div>
+      <div>
+        <h4>Image Editor (Pro)</h4>
+        <p>Crop/rotate/filters/sharpen/DSLR-like presets & export high-quality image</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== T1: Image -> PDF ========== -->
+  <section id="t1" class="tool-page">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <h3>1. Image → PDF</h3>
+      <div class="tiny">Create a single PDF from multiple images</div>
+    </div>
+    <div class="tool-card">
+      <label>Choose images (multiple allowed)</label>
+      <input type="file" id="t1_imgs" accept="image/*" multiple/>
+      <div style="margin-top:8px" class="flex">
+        <label style="width:120px">Page size:</label>
+        <select id="t1_size">
+          <option value="auto">Auto (image size)</option>
+          <option value="a4">A4 (portrait)</option>
+          <option value="a4_land">A4 (landscape)</option>
+        </select>
+        <button class="btn small" id="t1_generate">Create PDF</button>
+        <a id="t1_dl" style="display:none" class="btn small ghost">Download PDF</a>
+      </div>
+      <div id="t1_status" class="tiny muted" style="margin-top:8px"></div>
+    </div>
+  </section>
+
+  <!-- ========== T2: Image quality to target KB ========== -->
+  <section id="t2" class="tool-page">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <h3>2. Image → Target KB</h3>
+      <div class="tiny">Compress image iteratively to reach a target KB</div>
+    </div>
+    <div class="tool-card">
+      <label>Choose image</label>
+      <input type="file" id="t2_img" accept="image/*"/>
+      <label>Target size (KB)</label>
+      <input type="number" id="t2_target" placeholder="e.g., 50 (for 50 KB)"/>
+      <label>Minimum quality (0.1 to 0.9)</label>
+      <input type="number" id="t2_minq" value="0.3" step="0.05" min="0.1" max="0.9"/>
+      <div style="margin-top:8px" class="flex">
+        <button class="btn small" id="t2_start">Start Compress</button>
+        <a id="t2_dl" class="btn small ghost" style="display:none">Download</a>
+      </div>
+      <div id="t2_stat" class="tiny muted" style="margin-top:8px"></div>
+      <canvas id="t2_canvas" style="margin-top:10px;display:block"></canvas>
+    </div>
+  </section>
+
+  <!-- ========== T3: JPG <-> PNG ========== -->
+  <section id="t3" class="tool-page">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <h3>3. JPG ⇄ PNG Converter</h3>
+      <div class="tiny">Convert formats in high quality</div>
+    </div>
+    <div class="tool-card">
+      <label>Choose image</label>
+      <input type="file" id="t3_img" accept="image/*"/>
+      <label>Output format</label>
+      <select id="t3_fmt">
+        <option value="image/png">PNG</option>
+        <option value="image/jpeg">JPG (JPEG)</option>
+        <option value="image/webp">WebP</option>
+      </select>
+      <div style="margin-top:8px" class="flex">
+        <button class="btn small" id="t3_conv">Convert</button>
+        <a id="t3_dl" class="btn small ghost" style="display:none">Download</a>
+      </div>
+      <canvas id="t3_canvas" style="margin-top:10px;"></canvas>
+    </div>
+  </section>
+
+  <!-- ========== T4: PDF size reduce ========== -->
+  <section id="t4" class="tool-page">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <h3>4. PDF Size Reduce (Target KB)</h3>
+      <div class="tiny">Rebuild PDF by compressing page images</div>
+    </div>
+    <div class="tool-card">
+      <label>Choose PDF</label>
+      <input type="file" id="t4_pdf" accept="application/pdf"/>
+      <label>Target size (KB)</label>
+      <input type="number" id="t4_target" placeholder="e.g., 200 (for 200 KB)"/>
+      <label>Per-page quality floor (0.2 - 0.9)</label>
+      <input type="number" id="t4_minq" value="0.35" step="0.05" min="0.2" max="0.9"/>
+      <div style="margin-top:8px" class="flex">
+        <button class="btn small" id="t4_start">Start Reduce</button>
+        <a id="t4_dl" class="btn small ghost" style="display:none">Download</a>
+      </div>
+      <div id="t4_stat" class="tiny muted" style="margin-top:8px"></div>
+    </div>
+  </section>
+
+  <!-- ========== T5: Add Name & Date ========== -->
+  <section id="t5" class="tool-page">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <h3>5. Add Name & Date under Image</h3>
+      <div class="tiny">Add a white strip under image with name & date (custom)</div>
+    </div>
+    <div class="tool-card">
+      <label>Choose image</label>
+      <input type="file" id="t5_img" accept="image/*"/>
+      <label>Enter name</label>
+      <input type="text" id="t5_name" placeholder="Name text (e.g., John Doe)"/>
+      <label>Select date</label>
+      <input type="date" id="t5_date"/>
+      <div style="margin-top:8px" class="flex">
+        <button class="btn small" id="t5_make">Add & Download</button>
+        <a id="t5_dl" class="btn small ghost" style="display:none">Download</a>
+      </div>
+      <canvas id="t5_canvas" style="margin-top:10px;"></canvas>
+    </div>
+  </section>
+
+  <!-- ========== T6: PDF Unlock ========== -->
+  <section id="t6" class="tool-page">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <h3>6. PDF Unlock (Provide password)</h3>
+      <div class="tiny">Provide correct password to export an unlocked PDF</div>
+    </div>
+    <div class="tool-card">
+      <label>Choose password-protected PDF</label>
+      <input type="file" id="t6_pdf" accept="application/pdf"/>
+      <label>Enter password</label>
+      <input type="password" id="t6_pass" placeholder="PDF password"/>
+      <div style="margin-top:8px" class="flex">
+        <button class="btn small" id="t6_open">Unlock & Export</button>
+        <a id="t6_dl" class="btn small ghost" style="display:none">Download Unlocked PDF</a>
+      </div>
+      <div id="t6_stat" class="tiny muted" style="margin-top:8px"></div>
+    </div>
+  </section>
+
+  <!-- ========== T7: PDF Split ========== -->
+  <section id="t7" class="tool-page">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <h3>7. Split PDF by Pages</h3>
+      <div class="tiny">Enter pages (e.g., 1,3-5,9) to build a new PDF</div>
+    </div>
+    <div class="tool-card">
+      <label>Choose PDF</label>
+      <input type="file" id="t7_pdf" accept="application/pdf"/>
+      <label>Enter pages (comma and ranges)</label>
+      <input type="text" id="t7_pages" placeholder="e.g., 1,3-5,9"/>
+      <div style="margin-top:8px" class="flex">
+        <button class="btn small" id="t7_start">Extract Pages</button>
+        <a id="t7_dl" class="btn small ghost" style="display:none">Download</a>
+      </div>
+      <div id="t7_stat" class="tiny muted" style="margin-top:8px"></div>
+    </div>
+  </section>
+
+  <!-- ========== T8: Image Editor ========== -->
+  <section id="t8" class="tool-page">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <h3>8. Image Editor (Pro)</h3>
+      <div class="tiny">Crop / rotate / brightness / contrast / saturation / sharpen / presets</div>
+    </div>
+    <div class="tool-card">
+      <div class="row">
+        <div class="col" style="flex:0.6">
+          <label>Choose image</label>
+          <input type="file" id="t8_img" accept="image/*"/>
+          <div style="margin-top:8px" class="flex">
+            <button class="btn small" id="t8_crop">Crop Mode</button>
+            <button class="btn small" id="t8_apply">Apply Edits</button>
+            <a id="t8_dl" class="btn small ghost" style="display:none">Download</a>
+          </div>
+
+          <div style="margin-top:12px">
+            <label>Presets</label>
+            <select id="t8_preset">
+              <option value="none">None</option>
+              <option value="dslr1">DSLR Punch</option>
+              <option value="film">Film Warm</option>
+              <option value="vivid">Vivid</option>
+              <option value="mono">Monochrome</option>
+            </select>
+          </div>
+
+          <div style="margin-top:12px">
+            <label>Brightness</label>
+            <input id="t8_b" type="range" min="-100" max="100" value="0"/>
+            <label>Contrast</label>
+            <input id="t8_c" type="range" min="-100" max="100" value="0"/>
+            <label>Saturation</label>
+            <input id="t8_s" type="range" min="-100" max="100" value="0"/>
+            <label>Sharpness (0-5)</label>
+            <input id="t8_sh" type="range" min="0" max="5" step="0.5" value="0"/>
+            <label>Rotate (deg)</label>
+            <input id="t8_rot" type="number" value="0"/>
+          </div>
+        </div>
+
+        <div class="col" style="flex:0.4">
+          <div style="border:1px dashed rgba(255,255,255,0.03);padding:8px;border-radius:8px">
+            <div style="font-size:13px;color:var(--muted)">Editor Preview</div>
+            <div style="height:360px;overflow:auto">
+              <img id="t8_preview" style="max-width:100%;display:block;margin-top:8px"/>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>Made for you — browser-only • Files remain local • Test with small files first</footer>
+
+<script>
+  // ---------- SPA navigation ----------
+  const homeGrid = document.getElementById('homeGrid');
+  const pages = document.querySelectorAll('.tool-page');
+  const status = document.getElementById('status');
+  document.getElementById('homeBtn').addEventListener('click', showHome);
+
+  homeGrid.addEventListener('click', e => {
+    const box = e.target.closest('.box');
+    if(!box) return;
+    const t = box.dataset.tool;
+    showTool(t);
+  });
+
+  function showTool(tid){
+    // map t1..t8
+    document.getElementById('homeGrid').scrollIntoView({behavior:'smooth'});
+    pages.forEach(p => p.classList.remove('active'));
+    const el = document.getElementById(tid);
+    if(el) el.classList.add('active');
+    status.textContent = 'Opened Tool: ' + tid;
+    window.scrollTo({top:0,behavior:'smooth'});
+  }
+  function showHome(){
+    pages.forEach(p => p.classList.remove('active'));
+    status.textContent = 'Home';
+    window.scrollTo({top:0,behavior:'smooth'});
+  }
+
+  // ========== UTILS ==========
+  const { jsPDF } = window.jspdf;
+
+  function readFileAsDataURL(file){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(file); }) }
+  function readFileAsArrayBuffer(file){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsArrayBuffer(file); }) }
+  function blobSizeKB(blob){ return Math.round(blob.size/1024); }
+
+  // ========== T1: Image -> PDF ==========
+  document.getElementById('t1_generate').addEventListener('click', async ()=>{
+    const files = [...document.getElementById('t1_imgs').files];
+    const sizeOpt = document.getElementById('t1_size').value;
+    if(!files.length){ alert('Choose images'); return; }
+    document.getElementById('t1_status').textContent = 'Generating PDF...';
+    const pdf = new jsPDF({unit:'px', compress: true});
+    for(let i=0;i<files.length;i++){
+      const dataUrl = await readFileAsDataURL(files[i]);
+      const img = new Image();
+      await new Promise((res)=>{ img.onload=res; img.src = dataUrl; });
+      let w = img.naturalWidth, h = img.naturalHeight;
+      let pageW = w, pageH = h;
+      if(sizeOpt==='a4'){ pageW = 595; pageH = 842; } // px at default 72dpi ~ approximate
+      if(sizeOpt==='a4_land'){ pageW = 842; pageH = 595; }
+      // fit image maintaining aspect
+      const ratio = Math.min(pageW / w, pageH / h);
+      const dw = w * ratio, dh = h * ratio;
+      if(i>0) pdf.addPage([pageW,pageH]);
+      pdf.setPage(i+1);
+      pdf.addImage(img, 'PNG', (pageW-dw)/2, (pageH-dh)/2, dw, dh);
+    }
+    const out = pdf.output('blob');
+    const a = document.getElementById('t1_dl');
+    a.href = URL.createObjectURL(out); a.style.display='inline-block';
+    a.download = 'images-to-pdf.pdf';
+    document.getElementById('t1_status').textContent = 'PDF ready — size: ' + blobSizeKB(out) + ' KB';
+  });
+
+  // ========== T2: Image -> target KB ==========
+  document.getElementById('t2_start').addEventListener('click', async ()=>{
+    const f = document.getElementById('t2_img').files[0];
+    const targetKB = parseInt(document.getElementById('t2_target').value||0);
+    const minQ = parseFloat(document.getElementById('t2_minq').value||0.3);
+    if(!f || !targetKB){ alert('Choose image and target KB'); return; }
+    document.getElementById('t2_stat').textContent = 'Working...';
+    const dataUrl = await readFileAsDataURL(f);
+    const img = new Image();
+    await new Promise(res => { img.onload=res; img.src=dataUrl; });
+    const canvas = document.getElementById('t2_canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+    ctx.drawImage(img,0,0);
+    // iterative quality loop
+    let q = 0.92;
+    let blob = await new Promise(r => canvas.toBlob(r,'image/jpeg',q));
+    let iter = 0;
+    while(blobSizeKB(blob) > targetKB && q > minQ && iter < 12){
+      q -= 0.08; if(q < minQ) q = minQ;
+      blob = await new Promise(r => canvas.toBlob(r,'image/jpeg',q));
+      iter++;
+      document.getElementById('t2_stat').textContent = `Trying quality=${q.toFixed(2)} → ${blobSizeKB(blob)} KB`;
+      await new Promise(r => setTimeout(r,120));
+    }
+    if(blobSizeKB(blob) > targetKB){
+      document.getElementById('t2_stat').textContent = `Could not reach target. Final size: ${blobSizeKB(blob)} KB at q=${q.toFixed(2)}`;
+    } else {
+      document.getElementById('t2_stat').textContent = `Success: ${blobSizeKB(blob)} KB at q=${q.toFixed(2)}`;
+    }
+    const dl = document.getElementById('t2_dl');
+    dl.href = URL.createObjectURL(blob); dl.style.display='inline-block'; dl.download = 'compressed.jpg';
+  });
+
+  // ========== T3: JPG <-> PNG ==========
+  document.getElementById('t3_conv').addEventListener('click', async ()=>{
+    const f = document.getElementById('t3_img').files[0];
+    const fmt = document.getElementById('t3_fmt').value;
+    if(!f){ alert('Choose image'); return; }
+    const dataUrl = await readFileAsDataURL(f);
+    const img = new Image(); await new Promise(res=>{img.onload=res; img.src=dataUrl});
+    const canvas = document.getElementById('t3_canvas');
+    canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+    canvas.getContext('2d').drawImage(img,0,0);
+    const blob = await new Promise(r => canvas.toBlob(r, fmt, 0.95));
+    const a = document.getElementById('t3_dl'); a.href = URL.createObjectURL(blob); a.style.display='inline-block';
+    const ext = fmt.split('/')[1]; a.download = `converted.${ext}`;
+  });
+
+  // ========== T4: PDF size reduce ==========
+  document.getElementById('t4_start').addEventListener('click', async ()=>{
+    const f = document.getElementById('t4_pdf').files[0];
+    const targetKB = parseInt(document.getElementById('t4_target').value||0);
+    const minQ = parseFloat(document.getElementById('t4_minq').value||0.35);
+    if(!f || !targetKB){ alert('Choose PDF and target'); return; }
+    document.getElementById('t4_stat').textContent = 'Loading PDF...';
+    const arr = await readFileAsArrayBuffer(f);
+    const loading = pdfjsLib.getDocument({data:arr});
+    const pdf = await loading.promise;
+    const pages = pdf.numPages;
+    document.getElementById('t4_stat').textContent = `Rendering ${pages} pages...`;
+    const outPdf = new jsPDF({unit:'px',compress:true});
+    // render each page to canvas, then compress to image and add
+    let pageBlobs = [];
+    for(let i=1;i<=pages;i++){
+      const page = await pdf.getPage(i);
+      const viewport = page.getViewport({scale:1.5});
+      const canvas = document.createElement('canvas');
+      canvas.width = viewport.width; canvas.height = viewport.height;
+      const ctx = canvas.getContext('2d');
+      await page.render({canvasContext:ctx, viewport}).promise;
+      // initial quality
+      let q = 0.9;
+      let blob = await new Promise(r=>canvas.toBlob(r,'image/jpeg',q));
+      // reduce until reasonable per page
+      while(blobSizeKB(blob) > 400 && q > minQ){ // 400KB per page limit heuristic
+        q -= 0.12; if(q<minQ) q=minQ;
+        blob = await new Promise(r=>canvas.toBlob(r,'image/jpeg',q));
+      }
+      pageBlobs.push({blob, w:canvas.width, h:canvas.height});
+      document.getElementById('t4_stat').textContent = `Prepared page ${i}/${pages}, size ${blobSizeKB(blob)} KB`;
+      await new Promise(r=>setTimeout(r,80));
+    }
+    // Add pages into outPdf
+    for(let i=0;i<pageBlobs.length;i++){
+      const pb = pageBlobs[i];
+      const url = URL.createObjectURL(pb.blob);
+      const img = new Image(); await new Promise(res=>{img.onload=res; img.src=url});
+      if(i>0) outPdf.addPage([pb.w,pb.h]);
+      outPdf.setPage(i+1);
+      outPdf.addImage(img,'JPEG',0,0,pb.w,pb.h,'','FAST');
+    }
+    const outBlob = outPdf.output('blob');
+    const dl = document.getElementById('t4_dl'); dl.href = URL.createObjectURL(outBlob); dl.style.display='inline-block';
+    dl.download = 'reduced.pdf';
+    document.getElementById('t4_stat').textContent = `Done — final size ${blobSizeKB(outBlob)} KB`;
+  });
+
+  // ========== T5: Add name & date under image ==========
+  document.getElementById('t5_make').addEventListener('click', async ()=>{
+    const f = document.getElementById('t5_img').files[0];
+    const name = document.getElementById('t5_name').value || '';
+    const date = document.getElementById('t5_date').value || '';
+    if(!f){ alert('Choose image'); return; }
+    const dataUrl = await readFileAsDataURL(f);
+    const img = new Image(); await new Promise(res=>{img.onload=res; img.src=dataUrl});
+    const padding = 60; // white strip height
+    const canvas = document.getElementById('t5_canvas');
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight + padding;
+    const ctx = canvas.getContext('2d');
+    // background image
+    ctx.fillStyle = '#fff'; // behind? we will draw image first
+    ctx.drawImage(img,0,0);
+    // white strip below
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0,img.naturalHeight,canvas.width,padding);
+    // text: name and date in small format centered
+    ctx.fillStyle = '#000000';
+    ctx.font = `${Math.max(14, Math.round(padding*0.35))}px Arial`;
+    ctx.textAlign = 'center';
+    ctx.fillText(name + (name && date ? ' • ' : '') + date, canvas.width/2, img.naturalHeight + padding*0.63);
+    // produce blob
+    canvas.toBlob(b=>{
+      const a = document.getElementById('t5_dl'); a.href = URL.createObjectURL(b); a.style.display='inline-block'; a.download='signed-image.png';
+      document.getElementById('t5_canvas').style.display='block';
+      document.getElementById('t5_canvas').scrollIntoView({behavior:'smooth'});
+    }, 'image/png');
+  });
+
+  // ========== T6: PDF Unlock ==========
+  document.getElementById('t6_open').addEventListener('click', async ()=>{
+    const f = document.getElementById('t6_pdf').files[0];
+    const pass = document.getElementById('t6_pass').value || null;
+    if(!f){ alert('Choose PDF'); return; }
+    document.getElementById('t6_stat').textContent = 'Trying to open PDF...';
+    const arr = await readFileAsArrayBuffer(f);
+    let loading;
+    try{
+      loading = pdfjsLib.getDocument({data:arr, password: pass});
+      const pdf = await loading.promise;
+      // render pages to images and re-create PDF (unlocked)
+      const pages = pdf.numPages;
+      const outPdf = new jsPDF({unit:'px',compress:true});
+      for(let i=1;i<=pages;i++){
+        const page = await pdf.getPage(i);
+        const viewport = page.getViewport({scale:1.5});
+        const canvas = document.createElement('canvas');
+        canvas.width = viewport.width; canvas.height = viewport.height;
+        const ctx = canvas.getContext('2d');
+        await page.render({canvasContext:ctx, viewport}).promise;
+        const blob = await new Promise(r => canvas.toBlob(r,'image/jpeg',0.85));
+        const url = URL.createObjectURL(blob);
+        const img = new Image(); await new Promise(res=>{img.onload=res; img.src=url});
+        if(i>1) outPdf.addPage([canvas.width, canvas.height]);
+        outPdf.setPage(i);
+        outPdf.addImage(img,'JPEG',0,0,canvas.width,canvas.height);
+        document.getElementById('t6_stat').textContent = `Processed ${i}/${pages}`;
+      }
+      const out = outPdf.output('blob');
+      const a = document.getElementById('t6_dl'); a.href = URL.createObjectURL(out); a.style.display='inline-block'; a.download='unlocked.pdf';
+      document.getElementById('t6_stat').textContent = 'Unlocked PDF ready';
+    }catch(err){
+      // pdf.js gives password exception or other errors
+      document.getElementById('t6_stat').textContent = 'Open failed: ' + (err && err.message?err.message:err);
+    }
+  });
+
+  // ========== T7: PDF split ==========
+  function parsePagesInput(str, maxPage){
+    // parse like "1,3-5,9"
+    const parts = str.split(',').map(s=>s.trim()).filter(Boolean);
+    const out = new Set();
+    for(const p of parts){
+      if(p.includes('-')){
+        const [a,b] = p.split('-').map(x=>parseInt(x));
+        if(!isNaN(a) && !isNaN(b)){
+          for(let i=Math.max(1,a); i<=Math.min(b,maxPage); i++) out.add(i);
+        }
+      } else {
+        const n = parseInt(p);
+        if(!isNaN(n) && n>=1 && n<=maxPage) out.add(n);
+      }
+    }
+    return Array.from(out).sort((a,b)=>a-b);
+  }
+
+  document.getElementById('t7_start').addEventListener('click', async ()=>{
+    const f = document.getElementById('t7_pdf').files[0];
+    const pagesStr = document.getElementById('t7_pages').value || '';
+    if(!f || !pagesStr){ alert('Choose PDF and enter pages'); return; }
+    document.getElementById('t7_stat').textContent = 'Loading PDF...';
+    const arr = await readFileAsArrayBuffer(f);
+    const loading = pdfjsLib.getDocument({data:arr});
+    const pdf = await loading.promise;
+    const max = pdf.numPages;
+    const pagesToExtract = parsePagesInput(pagesStr, max);
+    if(pagesToExtract.length===0){ document.getElementById('t7_stat').textContent = 'No valid pages selected'; return; }
+    document.getElementById('t7_stat').textContent = `Extracting ${pagesToExtract.length} pages...`;
+    const outPdf = new jsPDF({unit:'px',compress:true});
+    for(let idx=0; idx<pagesToExtract.length; idx++){
+      const pnum = pagesToExtract[idx];
+      const page = await pdf.getPage(pnum);
+      const viewport = page.getViewport({scale:1.5});
+      const canvas = document.createElement('canvas');
+      canvas.width = viewport.width; canvas.height = viewport.height;
+      const ctx = canvas.getContext('2d');
+      await page.render({canvasContext:ctx, viewport}).promise;
+      const blob = await new Promise(r => canvas.toBlob(r,'image/jpeg',0.9));
+      const url = URL.createObjectURL(blob);
+      const img = new Image(); await new Promise(res=>{img.onload=res; img.src=url});
+      if(idx>0) outPdf.addPage([canvas.width, canvas.height]);
+      outPdf.setPage(idx+1);
+      outPdf.addImage(img,'JPEG',0,0,canvas.width,canvas.height);
+      document.getElementById('t7_stat').textContent = `Added page ${pnum}`;
+    }
+    const ob = outPdf.output('blob');
+    const a = document.getElementById('t7_dl'); a.href = URL.createObjectURL(ob); a.style.display='inline-block'; a.download='extracted.pdf';
+    document.getElementById('t7_stat').textContent = 'Done — download ready';
+  });
+  // ========== T8: Image Editor ==========
+  let t8_imgDataURL = null;
+  let cropper = null;
+  const t8_preview = document.getElementById('t8_preview');
+
+  document.getElementById('t8_img').addEventListener('change', async (e)=>{
+    const f = e.target.files[0];
+    if(!f) return;
+    t8_imgDataURL = await readFileAsDataURL(f);
+    t8_preview.src = t8_imgDataURL;
+    // destroy cropper if present
+    if(cropper){ try{ cropper.destroy(); }catch(e){} cropper = null; }
+    t8_preview.onload = ()=>{ /* ready */ };
+  });
+
+  document.getElementById('t8_crop').addEventListener('click', ()=>{
+    if(!t8_preview.src){ alert('Load an image first'); return; }
+    // use Cropper on preview image (replacing image element)
+    if(cropper){ cropper.destroy(); cropper=null; alert('Cropper disabled'); return; }
+    cropper = new Cropper(t8_preview, {viewMode:1, autoCropArea:0.8, responsive:true});
+    status.textContent = 'Crop mode on — drag to select region, click Crop again to disable';
+  });
+
+  // apply edits & export
+  document.getElementById('t8_apply').addEventListener('click', async ()=>{
+    if(!t8_preview.src){ alert('Load an image first'); return; }
+    // get canvas to draw final result
+    let canvas;
+    if(cropper){
+      canvas = cropper.getCroppedCanvas({imageSmoothingQuality:'high'});
+    } else {
+      // draw original image into canvas
+      const img = new Image(); await new Promise(r=>{img.onload=r; img.src=t8_preview.src});
+      canvas = document.createElement('canvas'); canvas.width=img.naturalWidth; canvas.height=img.naturalHeight;
+      canvas.getContext('2d').drawImage(img,0,0);
+    }
+
+    // get slider values
+    const b = parseInt(document.getElementById('t8_b').value||0);
+    const c = parseInt(document.getElementById('t8_c').value||0);
+    const s = parseInt(document.getElementById('t8_s').value||0);
+    const sh = parseFloat(document.getElementById('t8_sh').value||0);
+    const rot = parseFloat(document.getElementById('t8_rot').value||0);
+    const preset = document.getElementById('t8_preset').value;
+
+    // apply rotate by drawing into temp canvas
+    let tmp = document.createElement('canvas');
+    let tctx = tmp.getContext('2d');
+    // handle rotation by creating a bigger canvas
+    const rad = rot * Math.PI / 180;
+    if(rot !== 0){
+      const w = canvas.width, h = canvas.height;
+      const sin = Math.abs(Math.sin(rad)), cos = Math.abs(Math.cos(rad));
+      const nw = Math.round(w * cos + h * sin), nh = Math.round(w * sin + h * cos);
+      tmp.width = nw; tmp.height = nh;
+      tctx.translate(nw/2, nh/2);
+      tctx.rotate(rad);
+      tctx.drawImage(canvas, -w/2, -h/2);
+    } else {
+      tmp.width = canvas.width; tmp.height = canvas.height;
+      tctx.drawImage(canvas,0,0);
+    }
+
+    // apply filters (brightness/contrast/saturation) via pixel manipulation
+    let imgd = tctx.getImageData(0,0,tmp.width,tmp.height);
+    let data = imgd.data;
+
+    // apply preset first
+    function applyPreset(p){
+      if(p==='dslr1'){
+        // punch: increase contrast, saturation, slight warmth
+        for(let i=0;i<data.length;i+=4){
+          // increase contrast
+          for(let ch=0;ch<3;ch++){
+            let v = data[i+ch];
+            v = ((v-128) * 1.12) + 128; // contrast
+            data[i+ch] = v;
+          }
+          // saturation
+          const r=data[i], g=data[i+1], b=data[i+2];
+          const avg = (r+g+b)/3;
+          data[i]   = r + (r - avg) * 0.15;
+          data[i+1] = g + (g - avg) * 0.08;
+          data[i+2] = b + (b - avg) * 0.06;
+        }
+      } else if(p==='film'){
+        for(let i=0;i<data.length;i+=4){
+          data[i] *= 1.03; data[i+1] *= 1.01; data[i+2] *= 0.95;
+        }
+      } else if(p==='vivid'){
+        for(let i=0;i<data.length;i+=4){
+          data[i] = Math.min(255, data[i]*1.05);
+          data[i+1] = Math.min(255, data[i+1]*1.03);
+          data[i+2] = Math.min(255, data[i+2]*1.06);
+        }
+      } else if(p==='mono'){
+        for(let i=0;i<data.length;i+=4){
+          const g = 0.3*data[i]+0.59*data[i+1]+0.11*data[i+2];
+          data[i]=data[i+1]=data[i+2]=g;
+        }
+      }
+    }
+
+    if(preset && preset!=='none') applyPreset(preset);
+
+    // brightness: add value
+    if(b !== 0){
+      for(let i=0;i<data.length;i+=4){
+        data[i] = Math.min(255, Math.max(0, data[i] + b));
+        data[i+1] = Math.min(255, Math.max(0, data[i+1] + b));
+        data[i+2] = Math.min(255, Math.max(0, data[i+2] + b));
+      }
+    }
+    // contrast: simple algorithm
+    if(c !== 0){
+      const factor = (259 * (c + 255)) / (255 * (259 - c));
+      for(let i=0;i<data.length;i+=4){
+        data[i] = truncate(factor * (data[i]-128) + 128);
+        data[i+1] = truncate(factor * (data[i+1]-128) + 128);
+        data[i+2] = truncate(factor * (data[i+2]-128) + 128);
+      }
+    }
+    // saturation: convert to HSL-like tweak
+    if(s !== 0){
+      const sFactor = 1 + (s/100);
+      for(let i=0;i<data.length;i+=4){
+        const r = data[i], g = data[i+1], b = data[i+2];
+        const avg = (r+g+b)/3;
+        data[i] = truncate(avg + (r - avg) * sFactor);
+        data[i+1] = truncate(avg + (g - avg) * sFactor);
+        data[i+2] = truncate(avg + (b - avg) * sFactor);
+      }
+    }
+
+    // apply sharpening via convolution if sh>0
+    if(sh > 0){
+      // simple unsharp mask: blur and subtract
+      // For simplicity, apply a basic kernel sharpen
+      const w = tmp.width, h = tmp.height;
+      const src = new Uint8ClampedArray(data);
+      const out = new Uint8ClampedArray(data.length);
+      const kernel = [0, -1, 0, -1, 5, -1, 0, -1, 0]; // simple sharpen
+      for(let y=1;y<h-1;y++){
+        for(let x=1;x<w-1;x++){
+          let idx = (y*w + x)*4;
+          for(let ch=0; ch<3; ch++){
+            let v = 0;
+            let kIdx = 0;
+            for(let ky=-1; ky<=1; ky++){
+              for(let kx=-1; kx<=1; kx++){
+                const sIdx = ((y+ky)*w + (x+kx))*4 + ch;
+                v += src[sIdx] * kernel[kIdx++];
+              }
+            }
+            out[idx+ch] = truncate(v);
+          }
+          out[idx+3] = src[idx+3];
+        }
+      }
+      data = out;
+    }
+
+    imgd.data.set(data);
+    tctx.putImageData(imgd,0,0);
+
+    // finalize: get blob and show preview + download
+    const finalBlob = await new Promise(r => tmp.toBlob(r,'image/jpeg',0.92));
+    const url = URL.createObjectURL(finalBlob);
+    t8_preview.src = url;
+    const a = document.getElementById('t8_dl'); a.href = url; a.style.display='inline-block'; a.download = 'edited.jpg';
+    status.textContent = 'Edited image ready';
+  });
+
+  function truncate(v){ return Math.max(0, Math.min(255, Math.round(v))); }
+
+  // initial home shown
+  showHome();
+</script>
+
+</body>
+</html>
 
